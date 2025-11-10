@@ -86,7 +86,7 @@ def read_can_continuously():
     
     try:
         while True:
-            received_msg = bus.recv(timeout=1.0)
+            received_msg = bus.recv(timeout=2.0)
             
             if received_msg is None:
                 print("[CAN] Timeout - keine Nachricht empfangen")
@@ -117,13 +117,14 @@ def read_can_continuously():
                 # Thread-sicher aktualisieren
                 with signal_lock:
                     current_signal_values = physical_calc_val_arr
-                
+                """
                 if message_count % 50 == 0:  # Jede 50. Nachricht ausgeben
                     print(f"[CAN] Nachricht #{message_count} - Hex: {data_hex}")
                     for i, sig_name in enumerate(required_signals_arr):
                         if i < len(physical_calc_val_arr):
                             print(f"  {sig_name}: {physical_calc_val_arr[i]:.6f}")
-                
+                """
+                            
             except Exception as e:
                 print(f"[CAN] Fehler beim Dekodieren: {e}")
                 continue
