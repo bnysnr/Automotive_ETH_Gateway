@@ -148,7 +148,7 @@ sock.bind((SOURCE_IP, SOURCE_PORT))
 
 vdy_signal_parameters = [0.0] * len(SIGNAL_ORDER)
 bus = can.interface.Bus(channel=CAN_CHANNEL, interface='socketcan')
-long_accerleration_arr = []
+steering_wheel_angle = []
 
 try:
     while True:
@@ -174,7 +174,7 @@ try:
             continue
 
         print("-" * 70)
-
+        """
         vdy_signal_parameters[0] = set_wertebereich(vdy_signal_parameters[0], YAW_RATE_MIN, YAW_RATE_MAX)
         vdy_signal_parameters[1] = set_wertebereich(vdy_signal_parameters[1], ST_WHEEL_ANGLE_MIN, ST_WHEEL_ANGLE_MAX)
         vdy_signal_parameters[2] = set_wertebereich(vdy_signal_parameters[2], LAT_ACCEL_MIN, LAT_ACCEL_MAX)
@@ -185,8 +185,12 @@ try:
         vdy_signal_parameters[7] = set_wertebereich(vdy_signal_parameters[7], WHL_VEL_MIN, WHL_VEL_MAX)
         vdy_signal_parameters[8] = set_wertebereich(vdy_signal_parameters[8], VEH_VEL_MIN, VEH_VEL_MAX)
         long_accerleration_arr.append(vdy_signal_parameters[3])
-        #print(long_accerleration_arr)
+        print(long_accerleration_arr)
+        """
 
+        steering_wheel_angle.append(vdy_signal_parameters[1])
+
+        print(steering_wheel_angle)
         # SOME/IP Nachricht aufbauen und senden
         float_signals_list = [float_to_uint32_le(v) for v in vdy_signal_parameters]
 
@@ -229,8 +233,8 @@ try:
         sock.sendto(udp_payload, (RADAR_IP, DEST_PORT))
 
         readable_stwhl = hex_to_float32(float_signals_list[0])
-        print(f"SOME/IP Nachricht gesendet (SQC={SQC}, CRC=0x{crc:04X}) - YawRate = {readable_stwhl:.3f}")
-        print("=" * 70)
+        #print(f"SOME/IP Nachricht gesendet (SQC={SQC}, CRC=0x{crc:04X}) - YawRate = {readable_stwhl:.3f}")
+        #print("=" * 70)
 
         SQC = (SQC + 1) % 256
         time.sleep(0.02)
