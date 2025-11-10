@@ -1,0 +1,18 @@
+{
+    "can_ids": [
+        "18FEDF00",
+        "18F0093E"
+    ],
+
+    "signal_names": [
+        "YawRate",
+        "StWheelAngle",
+        "LatAccel",
+        "WhlVelFrLeft",
+        "WhlVelFrRight",
+        "WhlVelReLeft",
+        "WhlVelReRight",
+        "VehVelocityExt",
+        "VehLongAccelExt"    
+    ]
+}

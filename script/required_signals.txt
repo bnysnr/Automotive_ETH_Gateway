@@ -1,0 +1,9 @@
+VDC2_YawRate_3E
+VDC2_SteerWhlAngle_3E
+VDC2_LatAccel_3E
+VDC2_LongAccel_3E
+EBC2_RelWhlSpdFL_0B
+EBC2_RelWhlSpdFR_0B
+EBC2_RelWhlSpdRL_0B
+EBC2_RelWhlSpdRR_0B
+TCO1_VehSpd_EE
