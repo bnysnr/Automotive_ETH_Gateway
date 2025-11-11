@@ -5,9 +5,6 @@ import struct
 import time
 import numpy as np
 
-# ============================
-# Hilfsfunktionen
-# ============================
 
 def calc_crc16(data: bytes) -> int:
     crc = 0xFFFF
@@ -174,7 +171,7 @@ try:
             continue
 
         print("-" * 70)
-        """
+        long_acceleration_arr = []
         vdy_signal_parameters[0] = set_wertebereich(vdy_signal_parameters[0], YAW_RATE_MIN, YAW_RATE_MAX)
         vdy_signal_parameters[1] = set_wertebereich(vdy_signal_parameters[1], ST_WHEEL_ANGLE_MIN, ST_WHEEL_ANGLE_MAX)
         vdy_signal_parameters[2] = set_wertebereich(vdy_signal_parameters[2], LAT_ACCEL_MIN, LAT_ACCEL_MAX)
@@ -184,13 +181,13 @@ try:
         vdy_signal_parameters[6] = set_wertebereich(vdy_signal_parameters[6], WHL_VEL_MIN, WHL_VEL_MAX)
         vdy_signal_parameters[7] = set_wertebereich(vdy_signal_parameters[7], WHL_VEL_MIN, WHL_VEL_MAX)
         vdy_signal_parameters[8] = set_wertebereich(vdy_signal_parameters[8], VEH_VEL_MIN, VEH_VEL_MAX)
-        long_accerleration_arr.append(vdy_signal_parameters[3])
-        print(long_accerleration_arr)
-        """
+        long_acceleration_arr.append(vdy_signal_parameters[3])
+        print(f"Longitudinal Acceleration Arr: {long_acceleration_arr}")
+        
 
-        steering_wheel_angle.append(vdy_signal_parameters[1])
+        #steering_wheel_angle.append(vdy_signal_parameters[1])
 
-        print(steering_wheel_angle)
+        #print(steering_wheel_angle)
         # SOME/IP Nachricht aufbauen und senden
         float_signals_list = [float_to_uint32_le(v) for v in vdy_signal_parameters]
 
