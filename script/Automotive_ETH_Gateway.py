@@ -36,12 +36,10 @@ def set_wertebereich(value, min_val, max_val):
     return value
 
 
-# ============================
-# SOME/IP / Netzwerk-Konfig
-# ============================
 
+# Netzwerkkonfiguration
 SOURCE_IP = "192.168.16.5"
-RADAR_IP = "192.168.16.15"
+RADAR_IP = "192.168.16.12"
 SOURCE_PORT = 2001
 DEST_PORT = 60000
 INTERFACE = b"eth0.34\0"  # VLAN 34
@@ -59,9 +57,7 @@ DATA_ID = 0x03E8
 E2E_PAYLOAD_LENGTH = 73
 SQC = 0x00
 
-# ============================
-# CAN / DBC-Konfig
-# ============================
+
 
 DBC_PATH = '/home/admin/Praxissemester/dbc/J1939_MAN_1.dbc'
 SIGNALS_FILE = '/home/admin/Praxissemester/script/required_signals.txt'
@@ -84,10 +80,8 @@ qf_signals_list = [
     0x00, 0x00, 0x00, 0x00
 ]
 
-# ============================
-# Wertebereiche
-# ============================
 
+# Wertebereiche
 YAW_RATE_MIN = -2.6
 YAW_RATE_MAX = 2.6
 ST_WHEEL_ANGLE_MIN = -14.5 
@@ -102,9 +96,6 @@ VEH_LONG_ACCEL_MIN = -15
 VEH_LONG_ACCEL_MAX = 15
 
 
-# ============================
-# Initialisierung
-# ============================
 
 db = cantools.database.load_file(DBC_PATH)
 print(f"DBC geladen: {len(db.messages)} Messages\n")
