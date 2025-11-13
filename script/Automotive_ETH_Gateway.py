@@ -4,7 +4,6 @@ import socket
 import struct
 import time
 import threading
-import numpy as np
 import pyshark
 
 
@@ -34,32 +33,33 @@ def hex_to_float32(hex_val: int) -> float:
 def set_wertebereich(value, min_val, max_val):
     """Begrenzt den Wert auf den angegebenen Bereich"""
     if value < min_val:
-        print(f"[CLAMP] {value:.3f} < min {min_val}, setze auf {min_val}")
+        print(f"[Mapping] {value:.3f} < min {min_val}, setze auf {min_val}")
         return min_val
     elif value > max_val:
-        print(f"[CLAMP] {value:.3f} > max {max_val}, setze auf {max_val}")
+        print(f"[Mapping] {value:.3f} > max {max_val}, setze auf {max_val}")
         return max_val
     return value
 
+
 def capture_eth0():
     ip_addr_arr = []
+    print("Start radar IP sniffing - Waiting for 5 seconds")
     try:
         capture = pyshark.LiveCapture(interface='eth0')
 
         start_time = time.time()
         while True:
-            capture.sniff(packet_count=1)  
+            capture.sniff(packet_count=1)
             for packet in capture:
                 if 'IP' in packet:
                     src_ip = packet.ip.src
                     if src_ip not in ip_addr_arr:
                         ip_addr_arr.append(src_ip)
 
-            # 5 Sekunden Timer
             if time.time() - start_time >= 5:
-                break 
+                break
 
-        print(f"Founded IP-Adresses: {ip_addr_arr}")
+        print(f"Found IP addresses: {ip_addr_arr}")
         return ip_addr_arr
 
     except KeyboardInterrupt:
@@ -89,28 +89,6 @@ DBC_PATH = '/home/admin/Praxissemester/dbc/J1939_MAN_1.dbc'
 SIGNALS_FILE = '/home/admin/Praxissemester/script/required_signals.txt'
 CAN_CHANNEL = 'can0'
 
-SIGNAL_ORDER = [
-    "VDC2_YawRate_3E",
-    "VDC2_SteerWhlAngle_3E",
-    "VDC2_LatAccel_3E",
-    "VDC2_LongAccel_3E",
-    "EBC2_RelWhlSpdFL_0B",
-    "EBC2_RelWhlSpdFR_0B",
-    "EBC2_RelWhlSpdRL_0B",
-    "EBC2_RelWhlSpdRR_0B",
-    "TCO1_VehSpd_EE"
-]
-
-qf_signals_list = [0x00] * len(SIGNAL_ORDER)
-
-# Wertebereiche
-YAW_RATE_MIN, YAW_RATE_MAX = -2.6, 2.6
-ST_WHEEL_ANGLE_MIN, ST_WHEEL_ANGLE_MAX = -14.5, 14.5
-LAT_ACCEL_MIN, LAT_ACCEL_MAX = -15, 15
-WHL_VEL_MIN, WHL_VEL_MAX = 0, 115
-VEH_VEL_MIN, VEH_VEL_MAX = 0, 115
-VEH_LONG_ACCEL_MIN, VEH_LONG_ACCEL_MAX = -15, 15
-
 
 # -------------------- Initialisierung --------------------
 def load_dbc_and_signals():
@@ -121,10 +99,7 @@ def load_dbc_and_signals():
     with open(SIGNALS_FILE, 'r') as f:
         required_signals = [line.strip() for line in f if line.strip()]
 
-    print(f"Suche nach {len(required_signals)} Signalen:")
-    for sig in required_signals:
-        print(f"  - {sig}")
-    print()
+    print(f"Required Signals: {required_signals}\n")
 
     relevant_message_ids = set()
     signal_info = {}
@@ -146,7 +121,8 @@ def load_dbc_and_signals():
     print("=" * 70)
     print("Warte auf CAN-Daten...\n")
 
-    return db, relevant_message_ids, signal_info
+    # Rückgabe der dynamischen Signalliste
+    return db, relevant_message_ids, signal_info, required_signals
 
 
 def init_can_bus():
@@ -163,7 +139,8 @@ def init_udp_socket():
 
 
 # -------------------- SOME/IP Aufbau --------------------
-def build_someip_payload(vdy_signal_parameters, qf_signals_list, sqc):
+def build_someip_payload(signal_names, vdy_signal_parameters, qf_signals_list, sqc):
+    """Erstellt SOME/IP Payload dynamisch basierend auf signal_names"""
     float_signals_list = [float_to_uint32_le(v) for v in vdy_signal_parameters]
     E2E_PAYLOAD_RAW = b''.join(struct.pack("<I", v) for v in float_signals_list)
     E2E_PAYLOAD_RAW += b''.join(struct.pack("B", qf) for qf in qf_signals_list)
@@ -194,8 +171,13 @@ def build_someip_payload(vdy_signal_parameters, qf_signals_list, sqc):
     someip_length = len(header_part2) + len(someip_payload)
     header_part1 = struct.pack("!II", message_id, someip_length)
 
-    udp_payload = header_part1 + header_part2 + someip_payload
-    return udp_payload
+    # Debug-Ausgabe dynamisch
+    print("\n[SOME/IP Payload Debug]")
+    for name, val in zip(signal_names, vdy_signal_parameters):
+        print(f"  {name:30s}: {val:10.3f}")
+    print("-" * 60)
+
+    return header_part1 + header_part2 + someip_payload
 
 
 # -------------------- Sender --------------------
@@ -211,9 +193,10 @@ def send_udp_to_all(sock, radar_ips, payload):
 
 
 # -------------------- Hauptverarbeitung --------------------
-def process_can_messages(db, bus, sock, relevant_message_ids, signal_info, radar_ips):
+def process_can_messages(db, bus, sock, relevant_message_ids, signal_info, radar_ips, signal_names):
     """Liest CAN, verarbeitet Signale und sendet an Radar-IPs"""
-    vdy_signal_parameters = [0.0] * len(SIGNAL_ORDER)
+    vdy_signal_parameters = [0.0] * len(signal_names)
+    qf_signals_list = [0x00] * len(signal_names)
     sqc = 0
 
     try:
@@ -226,42 +209,31 @@ def process_can_messages(db, bus, sock, relevant_message_ids, signal_info, radar
                 continue
 
             decoded = db.decode_message(msg.arbitration_id, msg.data)
-
             updated = False
-            for idx, signal_name in enumerate(SIGNAL_ORDER):
+            signal_name_arr = []
+
+            # Dynamisch über alle Signale iterieren
+            for idx, signal_name in enumerate(signal_names):
                 if signal_name in decoded:
                     value = decoded[signal_name]
                     vdy_signal_parameters[idx] = value
                     updated = True
+                    signal_name_arr.append(signal_name)
                     print(f"{signal_name}: {value:12.6f} {signal_info[signal_name]['unit']}")
 
             if not updated:
                 continue
 
+            print(f"Gefundene Signale: {signal_name_arr}")
             print("-" * 70)
 
-            # Wertebereich begrenzen
-            vdy_signal_parameters[0] = set_wertebereich(vdy_signal_parameters[0], YAW_RATE_MIN, YAW_RATE_MAX)
-            vdy_signal_parameters[1] = set_wertebereich(vdy_signal_parameters[1], ST_WHEEL_ANGLE_MIN, ST_WHEEL_ANGLE_MAX)
-            vdy_signal_parameters[2] = set_wertebereich(vdy_signal_parameters[2], LAT_ACCEL_MIN, LAT_ACCEL_MAX)
-            vdy_signal_parameters[3] = set_wertebereich(vdy_signal_parameters[3], VEH_LONG_ACCEL_MIN, VEH_LONG_ACCEL_MAX)
-            vdy_signal_parameters[4] = set_wertebereich(vdy_signal_parameters[4], WHL_VEL_MIN, WHL_VEL_MAX)
-            vdy_signal_parameters[5] = set_wertebereich(vdy_signal_parameters[5], WHL_VEL_MIN, WHL_VEL_MAX)
-            vdy_signal_parameters[6] = set_wertebereich(vdy_signal_parameters[6], WHL_VEL_MIN, WHL_VEL_MAX)
-            vdy_signal_parameters[7] = set_wertebereich(vdy_signal_parameters[7], WHL_VEL_MIN, WHL_VEL_MAX)
-            vdy_signal_parameters[8] = set_wertebereich(vdy_signal_parameters[8], VEH_VEL_MIN, VEH_VEL_MAX)
+            # SOME/IP Nachricht aufbauen und senden
+            udp_payload = build_someip_payload(signal_names, vdy_signal_parameters, qf_signals_list, sqc)
+            print(f"VDY Signal Parameter Debug: {vdy_signal_parameters}")
 
-            long_acceleration_arr = [vdy_signal_parameters[3]]
-            print(f"Longitudinal Acceleration Arr: {long_acceleration_arr}")
-
-            # SOME/IP Nachricht aufbauen
-            udp_payload = build_someip_payload(vdy_signal_parameters, qf_signals_list, sqc)
-
-            # An alle Radar-IPs senden
             send_udp_to_all(sock, radar_ips, udp_payload)
 
             sqc = (sqc + 1) % 256
-            time.sleep(0.02)
 
     except KeyboardInterrupt:
         print("\n\nBeendet")
@@ -271,11 +243,10 @@ def process_can_messages(db, bus, sock, relevant_message_ids, signal_info, radar
 
 
 def start_radar_sender(radar_ips):
-    db, relevant_message_ids, signal_info = load_dbc_and_signals()
+    db, relevant_message_ids, signal_info, signal_names = load_dbc_and_signals()
     bus = init_can_bus()
     sock = init_udp_socket()
-    process_can_messages(db, bus, sock, relevant_message_ids, signal_info, radar_ips)
-
+    process_can_messages(db, bus, sock, relevant_message_ids, signal_info, radar_ips, signal_names)
 
 
 if __name__ == "__main__":
