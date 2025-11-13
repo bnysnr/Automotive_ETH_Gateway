@@ -232,8 +232,9 @@ def process_can_messages(db, bus, sock, relevant_message_ids, signal_info, radar
             print(f"VDY Signal Parameter Debug: {vdy_signal_parameters}")
 
             send_udp_to_all(sock, radar_ips, udp_payload)
-
+            time.sleep(0.02)
             sqc = (sqc + 1) % 256
+    
 
     except KeyboardInterrupt:
         print("\n\nBeendet")
