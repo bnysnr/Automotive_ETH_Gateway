@@ -7,7 +7,7 @@ import threading
 import pyshark
 
 
-# -------------------- Hilfsfunktionen --------------------
+# CRC16 Algorithmus
 def calc_crc16(data: bytes) -> int:
     crc = 0xFFFF
     for byte in data:
@@ -23,23 +23,6 @@ def calc_crc16(data: bytes) -> int:
 def float_to_uint32_le(value: float) -> int:
     """Float -> 4 Byte Little Endian (uint32)"""
     return struct.unpack("<I", struct.pack("<f", value))[0]
-
-
-def hex_to_float32(hex_val: int) -> float:
-    """Zur Kontrolle: int wieder zurück in float"""
-    return struct.unpack("<f", struct.pack("<I", hex_val))[0]
-
-
-def set_wertebereich(value, min_val, max_val):
-    """Begrenzt den Wert auf den angegebenen Bereich"""
-    if value < min_val:
-        print(f"[Mapping] {value:.3f} < min {min_val}, setze auf {min_val}")
-        return min_val
-    elif value > max_val:
-        print(f"[Mapping] {value:.3f} > max {max_val}, setze auf {max_val}")
-        return max_val
-    return value
-
 
 def capture_eth0():
     ip_addr_arr = []
@@ -74,7 +57,8 @@ SOURCE_PORT = 2001
 DEST_PORT = 60000
 INTERFACE = b"eth0.34\0"  # VLAN 34
 
-SERVICE_ID = 0x0002
+SERVICE_ID_EGOMOTION = 0x0002
+SERVICE_ID_SENSOR_CONFIG_MSG_STATUS = 0x0007
 METHOD_ID = 0x1000
 CLIENT_ID = 0x0000
 SESSION_ID = 0x0000
@@ -167,7 +151,7 @@ def build_someip_payload(signal_names, vdy_signal_parameters, qf_signals_list, s
     e2e_header = struct.pack(">HHB", crc, E2E_PAYLOAD_LENGTH, sqc)
     someip_payload = e2e_header + E2E_PAYLOAD_RAW
 
-    message_id = (SERVICE_ID << 16) | METHOD_ID
+    message_id = (SERVICE_ID_EGOMOTION << 16) | METHOD_ID
     someip_length = len(header_part2) + len(someip_payload)
     header_part1 = struct.pack("!II", message_id, someip_length)
 

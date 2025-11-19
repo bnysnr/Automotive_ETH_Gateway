@@ -1,9 +1,10 @@
 import pyshark
 import sys
 
-def capture_eth0():
-    service_id_printed = False  
+SERVICE_ID = '0007'
+sensor_ip_arr = ["192.168.16.15", "192.168.16.12", "192.168.16.13", "192.168.16.14"]
 
+def capture_eth0(service_id):
     try:
         capture = pyshark.LiveCapture(interface='eth0')
 
@@ -12,23 +13,17 @@ def capture_eth0():
             for packet in capture:
                 if 'IP' in packet:
                     src_ip = packet.ip.src
-                    if src_ip == "192.168.16.15":
-                        if hasattr(packet, 'data'):
-                            # Datenbytes ausgeben
-                            #print(f"Data bytes from {src_ip}: {packet.data.data}")
-                            if packet.data.data[:4] == "0007":
-                             #   print("found relevant signal")
-                                return packet.data.data
-                            
-                            # Service ID nur einmal ausgeben
-                           # if not service_id_printed:
-                            #    service_id = packet.data.data[:4]  # ersten 4 Bytes als Service ID
-                             #   service_id_printed = True
-                              #  return service_id
-                            #if service_id_printed:
-                             #   sys.exit()
-                        else:
-                            print(f"No raw data in packet from {src_ip}")
+                    for i in range(len(sensor_ip_arr)):
+                        if src_ip == sensor_ip_arr[i]:
+                            if hasattr(packet, 'data'):
+                                print(f"Daten gefunden aus: {sensor_ip_arr[i]}")
+                                
+                                # Datenbytes vergleichen
+                                if packet.data.data[:4] == service_id:
+                                    return packet.data.data
+                                
+                            else:
+                                print(f"No raw data in packet from IP adress: {sensor_ip_arr[i]}")
     
 
     except KeyboardInterrupt:
@@ -41,10 +36,21 @@ def signal_state_mapping(arr, state_values):
         arr.append(state_values[i+1:i+2])
     return arr
 
+def print_func(arr):
+    print("Signal Status Value")
+    print(f"Longitudinal Velocity: {arr[0]}")
+    print(f"Longitudinal Acceleration: {arr[1]}")
+    print(f"LateralAcceleration: {arr[2]}")
+    print(f"YawRate: {arr[3]}")
+    print(f"SteeringAngle: {arr[4]}")
+    print(f"DrivingDirection: {arr[5]}")
+    print(f"CharacteristicSpeed: {arr[6]}")
+
+
 if __name__ == "__main__":
     signal_state_arr = []
-    udp_data_payload = capture_eth0()
+    udp_data_payload = capture_eth0(SERVICE_ID)
     signal_status_value = udp_data_payload[322:336]
     print(udp_data_payload, len(udp_data_payload), " - " ,{signal_status_value})
     new_arr = signal_state_mapping(signal_state_arr, signal_status_value)
-    print(f"Array: {new_arr}")
+    print_func(new_arr)
