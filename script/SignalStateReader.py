@@ -1,40 +1,40 @@
-import socket
-import struct
+import pyshark
 import datetime
 
+sensor_ips = ["192.168.16.15", "192.168.16.12", "192.168.16.13", "192.168.16.14"]
 
-sensor_ips = {"192.168.16.15", "192.168.16.12", "192.168.16.13", "192.168.16.14"}
 
-# Multicast-Adresse und Port
-MCAST_GRP = '239.22.0.3'
-UDP_PORT = 40000
-INTERFACE_IP = '192.168.16.5'  
-
-# Socket erstellen
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-sock.bind(('', UDP_PORT))  # auf alle Interfaces binden
-
-# Multicast-Gruppe beitreten
-mreq = struct.pack("4s4s", socket.inet_aton(MCAST_GRP), socket.inet_aton(INTERFACE_IP))
-sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-
-print(f"Listening on multicast {MCAST_GRP} port {UDP_PORT}...")
+DST_PORT = 40000
+capture = pyshark.LiveCapture(
+        interface="eth0",
+        display_filter=f"udp && udp.dstport == {DST_PORT}"
+    )
 
 def read_udp_packet():
-    while True:
-        data, addr = sock.recvfrom(4096)  
-        if addr[0] not in sensor_ips:
-            continue
+    
 
-        raw = data.hex()
-        if raw.startswith("0007"):
-            print(f"Sensor state values from IP Adress: {addr[0]}")     # addr[0] = IP Adress, addr[1] = Port
-            extracted = raw[322:336]
-            return extracted
-        # Pakete, die nicht mit 0007 starten, ignorieren
-        else:
-            continue
+    print("Warte auf UDP-Pakete...")
+
+    for packet in capture.sniff_continuously():
+        try:
+            if "ip" not in packet:
+                continue
+
+            if packet.ip.src not in sensor_ips:
+                continue
+
+            # schneller Zugriff auf Payload (keine teure Dekodierung)
+            raw = packet.udp.payload.replace(":", "")
+            if raw[0:4] == '0007':
+                return raw[322:336]
+
+        except KeyboardInterrupt:
+            capture.close()
+            print("Capture finished")
+
+        except Exception as e:
+            print("Fehler:", e)
+
 
 
 def signal_state_mapping(arr, state_values):
@@ -53,10 +53,8 @@ def print_func(arr):
     print(f"CharacteristicSpeed: {arr[6]}")
 
 
-
 if __name__ == "__main__":
     while True:
-
         signale_state_arr = []
         start = datetime.datetime.now()
         udp_packet_extracted = read_udp_packet()
