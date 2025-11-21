@@ -1,40 +1,42 @@
-import pyshark
+import socket
+import struct
 import datetime
 
-sensor_ips = ["192.168.16.15", "192.168.16.12", "192.168.16.13", "192.168.16.14"]
+# IPs der Sensoren, von denen wir Pakete akzeptieren
+sensor_ips = {"192.168.16.15", "192.168.16.12", "192.168.16.13", "192.168.16.14"}
 
+# Multicast-Adresse und Port
+MCAST_GRP = '239.22.0.3'
+UDP_PORT = 40000
+INTERFACE_IP = '192.168.16.5'  
 
-DST_PORT = 40000
-capture = pyshark.LiveCapture(
-        interface="eth0",
-        display_filter=f"udp && udp.dstport == {DST_PORT}"
-    )
+# Socket erstellen
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+sock.bind(('', UDP_PORT))  # auf alle Interfaces binden
+
+# Multicast-Gruppe beitreten
+mreq = struct.pack("4s4s", socket.inet_aton(MCAST_GRP), socket.inet_aton(INTERFACE_IP))
+sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+
+print(f"Listening on multicast {MCAST_GRP} port {UDP_PORT}...")
 
 def read_udp_packet():
-    
+    while True:
+        data, addr = sock.recvfrom(4096) 
+        # Nur Sensoren aus der Liste akzeptieren
+        if addr[0] not in sensor_ips:
+            continue
 
-    print("Warte auf UDP-Pakete...")
-
-    for packet in capture.sniff_continuously():
-        try:
-            if "ip" not in packet:
-                continue
-
-            if packet.ip.src not in sensor_ips:
-                continue
-
-            # schneller Zugriff auf Payload (keine teure Dekodierung)
-            raw = packet.udp.payload.replace(":", "")
-            if raw[0:4] == '0007':
-                return raw[322:336]
-
-        except KeyboardInterrupt:
-            capture.close()
-            print("Capture finished")
-
-        except Exception as e:
-            print("Fehler:", e)
-
+        raw = data.hex()
+        # Nach Paketen von SignalConfigMsgStatus filtern
+        if raw.startswith("0007"):
+            print(f"Nachricht erkannt von {addr[0]}, {len(data)} bytes")
+            extracted = raw[322:336] if len(raw) >= 336 else None
+            return extracted
+        # Pakete, die nicht mit 0007 starten, ignorieren
+        else:
+            continue
 
 
 def signal_state_mapping(arr, state_values):
@@ -53,12 +55,14 @@ def print_func(arr):
     print(f"CharacteristicSpeed: {arr[6]}")
 
 
+
 if __name__ == "__main__":
     while True:
         signale_state_arr = []
         start = datetime.datetime.now()
         udp_packet_extracted = read_udp_packet()
         signal_states = signal_state_mapping(signale_state_arr, udp_packet_extracted)
+        print(f"UDP Paket: {signal_states}")
         print_func(signal_states)
         ende = datetime.datetime.now()
         print(f"Dauer: {ende - start}")
