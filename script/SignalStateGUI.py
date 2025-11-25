@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QFrame, QLabel, QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView
+from PyQt5.QtWidgets import QApplication, QWidget, QFrame, QLabel, QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView, QCheckBox, QVBoxLayout
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap, QFontDatabase, QFont, QColor, QBrush
 
@@ -38,6 +38,7 @@ class MyWindow(QWidget):
         self.titleBox()
         self.egomotionBox()
         self.sensorconfigmsgstatusbox()
+        self.checkbox_frame()
 
         apply_font_to_table(self.table_ego, self.gui_font)
         apply_font_to_table(self.table_cfg, self.gui_font)
@@ -114,7 +115,7 @@ class MyWindow(QWidget):
         self.label3.setStyleSheet("font-size: 20px; font-weight: bold;")
 
         box_y = int(self.height() * 0.1) + 10
-        box_height = int(self.height() * 0.85)
+        box_height = int(self.height() * 0.65)
         usable_width = self.width() - 30
         box2_width = int(usable_width * 0.5)
         box3_width = int(usable_width * 0.5)
@@ -147,6 +148,27 @@ class MyWindow(QWidget):
 
         self.table_cfg.setGeometry(10, 50, box3_width - 20, box_height - 60)
 
+    def checkbox_frame(self):
+        # Checkbox direkt unter Box3 platzieren
+        self.checkbox = QCheckBox("Pointcloud deactivated", self)
+
+        # gleiche Breite wie Box3, gleiche X-Position
+        cb_x = self.box3.x() + 7
+        cb_y = self.box3.y() + self.box3.height() + 10  # 10 px Abstand nach unten
+
+        self.checkbox.setGeometry(cb_x, cb_y, 250, 30)
+        self.checkbox.setFont(self.gui_font)
+
+        # Wichtig! Keine sofortige Funktionsausführung
+        self.checkbox.stateChanged.connect(self.onStateChanged)
+
+
+    def onStateChanged(self, state):
+        if self.checkbox.isChecked():
+            self.checkbox.setText("Pointcloud activated")
+        else:
+            self.checkbox.setText("Pointcloud deactivated")
+
 
     # --- Spaltenbreiten proportional anpassen ---
     def resizeEvent(self, event):
@@ -157,7 +179,7 @@ class MyWindow(QWidget):
         self.table_ego.setColumnWidth(0, int(ego_width * 0.7))
         self.table_ego.setColumnWidth(1, int(ego_width * 0.3))
 
-        # Tabelle in Box3 (Config) 70/30
+        # Tabelle in Box3 (Config) 
         cfg_width = self.table_cfg.viewport().width()
         self.table_cfg.setColumnWidth(0, int(cfg_width * 0.4))
         self.table_cfg.setColumnWidth(1, int(cfg_width * 0.2))
