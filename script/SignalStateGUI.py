@@ -125,7 +125,7 @@ class MyWindow(QWidget):
     def update_values(self, values):
         for i, val in enumerate(values):
             item = QTableWidgetItem(val)
-            item.setTextAlignment(Qt.AlignHCenter and Qt.AlignVCenter)
+            item.setTextAlignment(Qt.AlignHCenter)
             self.table_cfg.setItem(i, 1, item)
 
 
